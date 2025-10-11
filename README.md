@@ -4,15 +4,15 @@ A lightweight C++ driver for the **AMS AS5600** magnetic rotary position sensor.
 
 ## Contents
 
-- Basic Usage
+- [Basic Usage](#basic-usage)
 
-   - Driver Initialization
-   - Units
-   - Reading Angles
-   - Setting Configurations
-   - Example Code
+   - [Driver Initialization](#driver-initialization)
+   - [Units](#units)
+   - [Reading Angles](#reading-angles)
+   - [Setting Configurations](#setting-configurations)
+   - [Example Code](#example-code)
 
-- Functions
+- [Functions](#functions)
 
 ## Basic Usage
 
