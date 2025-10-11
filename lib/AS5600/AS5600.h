@@ -4,6 +4,12 @@
 #include "stdio.h"
 #include "hardware/i2c.h"
 
+// Tag Structs
+
+struct RawData {};
+struct Degrees {};
+struct Radians {};
+
 class AS5600 {
 
     public:
@@ -78,16 +84,38 @@ class AS5600 {
 
         enum ERROR_CODE {
             AS5600_OK = 0,
-            AS5600_ERROR_INIT = -1,
-            AS5600_ERROR_REGISTER_READ = -2,
-            AS5600_ERROR_REGISTER_WRITE = -3
+            AS5600_ERROR_REGISTER_READ = -1,
+            AS5600_ERROR_REGISTER_WRITE = -2
         };
 
     private:
 
-        ERROR_CODE  lastError;
+        static constexpr float PI     = 3.14159265358979323846f ;
+        static constexpr float rawToDegrees = 360.0f  / 4096.0f ;
+        static constexpr float degreesToRaw = 4096.0f / 360.0f  ;
+        static constexpr float rawToRadians = 2 * PI  / 4096.0f ;
+        static constexpr float radiansToRaw = 4096.0f / (2 * PI);
+
+        float scaleToDegrees = 1;
+        float scaleToRadians = 1;
+
+        uint8_t  lastError;
 
         i2c_inst *i2c;
+
+        template<typename Unit> struct angle;
+
+        bool     _setZPosition(uint16_t pos);
+        uint16_t _getZPosition();
+
+        bool     _setMPosition(uint16_t pos);
+        uint16_t _getMPosition();
+
+        bool     _setMaxAngle (uint16_t pos);
+        uint16_t _getMaxAngle();
+
+        uint16_t _readAngleRaw();
+        uint16_t _readAngle();
 
     public:
 
@@ -95,22 +123,23 @@ class AS5600 {
             AS5600::i2c = i2c;
         };
 
-        ERROR_CODE  getLastError();
+        uint8_t  getLastErrorCode()   {
+            return lastError;
+        };
+    
+        template <typename Unit> bool setZPosition(typename angle<Unit>::dataType pos);
+        template <typename Unit> typename angle<Unit>::dataType getZPosition();
+
+        template <typename Unit> bool setMPosition(typename angle<Unit>::dataType pos);
+        template <typename Unit> typename angle<Unit>::dataType getMPosition();
+
+        template <typename Unit> bool setMaxAngle (typename angle<Unit>::dataType pos);
+        template <typename Unit> typename angle<Unit>::dataType getMaxAngle();
+        
+        template <typename Unit> typename angle<Unit>::dataType readAngleRaw();
+        template <typename Unit> typename angle<Unit>::dataType readAngle();
 
         uint8_t  getZMCO();
-
-        bool     setZPosition(uint16_t pos);
-        uint16_t getZPosition();
-
-        bool     setMPosition(uint16_t pos);
-        uint16_t getMPosition();
-
-        bool     setMaxAngle(uint16_t pos);
-        uint16_t getMaxAngle();
-        
-        uint16_t readAngleRaw();
-        uint16_t readAngle();
-
         uint8_t  getStatus();
         uint8_t  readAGC();
         uint16_t readMagnitude();
@@ -140,10 +169,11 @@ class AS5600 {
         uint8_t  getWatchdog();
 
 
-
         void     burnAngle();
         void     burnSetting();
+        
+}; 
 
-};
+#include "AS5600_Templates.tpp"
 
 #endif

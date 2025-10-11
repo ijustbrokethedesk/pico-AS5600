@@ -1,6 +1,6 @@
 #include "AS5600.h"
 
-// AS5600 Slave Address
+// AS5600 Hardware Address
 static const uint8_t HARDWARE_ADDRESS = 0x36;
 
 // Configuration Registers
@@ -31,7 +31,6 @@ static const uint8_t BITMASK_SF     = 0xFC;
 static const uint8_t BITMASK_FTH    = 0xE3;
 static const uint8_t BITMASK_WD     = 0xDF;
 
-
 static bool reg_write(i2c_inst_t *i2c, const uint8_t reg, uint8_t *buf, uint8_t numBytes) {
 
     if (numBytes == 0) return false;
@@ -58,10 +57,6 @@ static bool reg_read (i2c_inst_t *i2c, const uint8_t reg, uint8_t *buf, uint8_t 
     return (i2c_read_blocking(i2c, HARDWARE_ADDRESS, buf, numBytes, false) == numBytes);
 
 }
-
-// @brief  Get the error code of the previous AS5600 function
-// @return AS5600 Error Code
-AS5600::ERROR_CODE AS5600::getLastError() {return lastError;}
 
 // @brief  Get value of ZMCO
 // @return Number of writes to ZMCO
@@ -351,7 +346,7 @@ uint8_t AS5600::getStatus() {
 
 
 // @brief Set Start Angle
-bool AS5600::setZPosition(uint16_t pos) {
+bool AS5600::_setZPosition(uint16_t pos) {
     uint8_t data[2];   lastError = AS5600_OK;
 
     data[0] = pos >> 8;
@@ -366,21 +361,17 @@ bool AS5600::setZPosition(uint16_t pos) {
 }
 
 // @brief Get Start Angle
-uint16_t AS5600::getZPosition() {
+uint16_t AS5600::_getZPosition() {
     uint8_t data[2];   lastError = AS5600_OK;
 
-    if (!reg_read(i2c, ZPOS, data, 2)) {
-        lastError = AS5600_ERROR_REGISTER_READ;
-        return false;
-    }
+    if (!reg_read(i2c, ZPOS, data, 2))      lastError = AS5600_ERROR_REGISTER_READ;
 
-    return ((data[0]<<8) | data[1]);
+    return (data[0]<<8) | data[1];
 }
-
 
 // @brief Set Stop Angle
 // @note Angle Range = Stop Angle - Start Angle
-bool AS5600::setMPosition(uint16_t pos) {
+bool AS5600::_setMPosition(uint16_t pos) {
     uint8_t data[2];   lastError = AS5600_OK;
 
     data[0] = pos >> 8;
@@ -391,67 +382,79 @@ bool AS5600::setMPosition(uint16_t pos) {
         return false;
     }
 
+    uint16_t angleRange = _getMPosition() - _getZPosition();
+    if (lastError == AS5600_ERROR_REGISTER_READ) return false;
+
+    if (angleRange > 0) {
+        scaleToDegrees = (angleRange / 4096.0f) * rawToDegrees;
+        scaleToRadians = (angleRange / 4096.0f) * rawToRadians;
+    }
+
     return true;
 }
 
 // @brief Get Stop Angle
-uint16_t AS5600::getMPosition() {
+uint16_t AS5600::_getMPosition() {
     uint8_t data[2];   lastError = AS5600_OK;
 
-    if (!reg_read(i2c, MPOS, data, 2)) {
-        lastError = AS5600_ERROR_REGISTER_READ;
-        return false;
-    }
+    if (!reg_read(i2c, MPOS, data, 2))      lastError = AS5600_ERROR_REGISTER_READ;
 
-    return ((data[0]<<8) | data[1]);
+    return (data[0]<<8) | data[1];
 }
 
 
 // @brief Set Max Angle
 // @note Angle Range = Start Angle + Max Angle
-bool AS5600::setMaxAngle(uint16_t pos) {
+bool AS5600::_setMaxAngle(uint16_t pos) {
     uint8_t data[2];   lastError = AS5600_OK;
 
     data[0] = pos >> 8;
     data[1] = pos;
-
 
     if(!reg_write(i2c, MANG, data, 2)) {
         lastError = AS5600_ERROR_REGISTER_WRITE;
         return false;
     }
 
+    uint16_t angleRange = _getMaxAngle();
+    if (lastError == AS5600_ERROR_REGISTER_READ) return false;
+
+    if (angleRange > 0) {
+        scaleToDegrees = (angleRange / 4096.0f) * rawToDegrees;
+        scaleToRadians = (angleRange / 4096.0f) * rawToRadians;
+    }
+
     return true;
 }
 
 // @brief Get Max Angle
-uint16_t AS5600::getMaxAngle() {
+uint16_t AS5600::_getMaxAngle() {
     uint8_t data[2];   lastError = AS5600_OK;
 
-    if (!reg_read(i2c, MANG, data, 2)) {
-        lastError = AS5600_ERROR_REGISTER_READ;
-        return false;
-    }
+    if (!reg_read(i2c, MANG, data, 2))      lastError = AS5600_ERROR_REGISTER_READ;
 
-    return ((data[0]<<8) | data[1]);
+    return (data[0]<<8) | data[1];
 }
 
+
 // @brief Read Unscaled Angle (No Limits)
-uint16_t AS5600::readAngleRaw() {
+uint16_t AS5600::_readAngleRaw() {
     uint8_t data[2];   lastError = AS5600_OK;
 
     if (!reg_read(i2c, RAW_ANGLE, data, 2)) lastError = AS5600_ERROR_REGISTER_READ;
 
-    return ((data[0]<<8) | data[1]);
+    return (data[0]<<8) | data[1];
 }
 
 // @brief Read Scaled Angle (With Limits)
-uint16_t AS5600::readAngle() {
+uint16_t AS5600::_readAngle() {
     uint8_t data[2];   lastError = AS5600_OK;
+
+    if (lastError == AS5600_ERROR_REGISTER_READ) return 0;
 
     if (!reg_read(i2c, ANGLE, data, 2))     lastError = AS5600_ERROR_REGISTER_READ;
 
-    return ((data[0]<<8) | data[1]);
+    return (data[0]<<8) | data[1];
 }
 
 

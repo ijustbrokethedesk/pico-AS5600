@@ -14,10 +14,10 @@ int main()
 
 
     // Create AS5600 Object
-    AS5600 encoder(i2c0);
+    AS5600 sensor(i2c0);
     
     while (true) {
-        printf("%d\n", encoder.readAngleRaw()); // Print raw angle data over serial
+        printf("%d\n", sensor.readAngleRaw()); // Print raw angle data over serial
         sleep_ms(5);
     }
 }
