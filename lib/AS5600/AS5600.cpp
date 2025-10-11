@@ -33,11 +33,9 @@ static const uint8_t BITMASK_WD     = 0xDF;
 
 static bool reg_write(i2c_inst_t *i2c, const uint8_t reg, uint8_t *buf, uint8_t numBytes) {
 
-    if (numBytes == 0) return false;
+    numBytes += 1;
 
-    uint8_t frame[++numBytes];
-
-    frame[0] = reg;
+    uint8_t frame[numBytes] = {reg};
 
     for (int i = 1; i < numBytes; ++i) {
         frame[i] = buf[i-1];
@@ -49,8 +47,6 @@ static bool reg_write(i2c_inst_t *i2c, const uint8_t reg, uint8_t *buf, uint8_t 
 
 
 static bool reg_read (i2c_inst_t *i2c, const uint8_t reg, uint8_t *buf, uint8_t numBytes) {
-
-    if (numBytes == 0) return false;
 
     if (i2c_write_blocking(i2c, HARDWARE_ADDRESS, &reg, 1, true) != 1) return false;
 
@@ -382,7 +378,8 @@ bool AS5600::_setMPosition(uint16_t pos) {
         return false;
     }
 
-    uint16_t angleRange = _getMPosition() - _getZPosition();
+    uint16_t startAngle = _getZPosition();
+    uint16_t angleRange = _getMPosition() - startAngle;
     if (lastError == AS5600_ERROR_REGISTER_READ) return false;
 
     if (angleRange > 0) {
@@ -449,8 +446,6 @@ uint16_t AS5600::_readAngleRaw() {
 // @brief Read Scaled Angle (With Limits)
 uint16_t AS5600::_readAngle() {
     uint8_t data[2];   lastError = AS5600_OK;
-
-    if (lastError == AS5600_ERROR_REGISTER_READ) return 0;
 
     if (!reg_read(i2c, ANGLE, data, 2))     lastError = AS5600_ERROR_REGISTER_READ;
 

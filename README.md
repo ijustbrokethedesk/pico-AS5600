@@ -17,40 +17,124 @@ A lightweight C++ driver for the **AMS AS5600** magnetic rotary position sensor.
 ## Basic Usage
 
 ### Driver Initialization
+To use this driver, first initialize your I²C interface on the Pico. The AS5600 can support I²C speeds up to 1MHz.
+The example below shows how to initialize **I2C0**, using pins GP0 (SDA) and GP1 (SCL).  
+After that, an `AS5600` object is created, ready for communication.
+
 ```
-// Example: Initialize I2C0 with pins 0 (SDA) and 1 (SCL)
+i2c_init(i2c0, 1000000);             // Set I2C Fast Mode+ @ 1 MHz
+gpio_set_function(0, GPIO_FUNC_I2C); // SDA
+gpio_set_function(1, GPIO_FUNC_I2C); // SCL
+gpio_pull_up(0);
+gpio_pull_up(1);
 
-i2c_init(i2c0, 1000000);             // Set I2C Fast Mode+ @ 1MHz
-gpio_set_function(0, GPIO_FUNC_I2C); // Set GP0 to I2C function
-gpio_set_function(1, GPIO_FUNC_I2C); // Set GP1 to I2C function
-
-// Create AS5600 Object
 AS5600 sensor(i2c0);
 ```
 
+The library automatically uses the AS5600 default I²C address (`0x36`).
+
 ### Units
-Certain functions in this library can work with different units of measurement. 
-- The `RawData` tag specifies the function to operate using raw sensor data (Unsigned 12bit integer).
-- The `Degrees` tag specifies the function to operate using degrees (Floating point data).
-- The `Radians` tag specifies the function to operate using radians (Floating point data).
+The AS5600 sensor measures angles internally as 12-bit unsigned integers (0 to 4096).  
+This library allows you to utilize certain functions with **degrees** or **radians** using template tags.
+
+| Tag | Description | Data Type |
+|------|--------------|------------|
+| `RawData` | Use function with raw data (0-4096) | `uint16_t` |
+| `Degrees` | Use function in degrees (0°-360°) | `float` |
+| `Radians` | Use function in radians (0-2π) | `float` |
+
 ### Reading Angles
+The AS5600 can return both **unscaled** and **scaled** angles.  
+- **Unscaled angles** represent the absolute angle reading, independent of the user defined configuration.  
+- **Scaled angles** are adjusted based on the configured angle limits (ZPOS, MPOS, and MAXANGLE).
+
+The following code reads **unscaled** data:
+
 ```
-uint16_t unscaledAngleRawData    = sensor.readAngleRaw<RawData>();  // 0 - 4096 range
-float    unscaledAngleDegrees    = sensor.readAngleRaw<Degrees>();  // 0 - 360.0°
-float    unscaledAngleRadians    = sensor.readAngleRaw<Radians>();  // 0 - 2π radians
+uint16_t unscaledAngleRawData = sensor.readAngleRaw<RawData>();
+float    unscaledAngleDegrees = sensor.readAngleRaw<Degrees>();
+float    unscaledAngleRadians = sensor.readAngleRaw<Radians>();
 ```
 
+The following code reads **scaled** angle values, which reflect the range set by your own configuration.
 
 ```
-// Angle Ranges set by user configuration
-
-uint16_t scaledAngleRawData    = sensor.readAngle<RawData>();
-float    scaledAngleDegrees    = sensor.readAngle<Degrees>(); 
-float    scaledAngleRadians    = sensor.readAngle<Radians>();
+uint16_t scaledAngleRawData = sensor.readAngle<RawData>();
+float    scaledAngleDegrees = sensor.readAngle<Degrees>();
+float    scaledAngleRadians = sensor.readAngle<Radians>();
 ```
+
 ### Setting Configurations
+The AS5600 output can be configured easily using this library.  
+
+You can modify each setting individually:
+
+```
+sensor.setPowerMode(LOW_POWER_MODE1);
+sensor.setHysteresis(HYST_1LSB);
+sensor.setOutputMode(ANALOG_90PERCENT);
+sensor.setPWMFrequency(PWM_230HZ);
+sensor.setSlowFilter(SLOW_FILTER_8x);
+sensor.setFastFilter(FAST_FILTER_6LSB);
+sensor.setWatchdog(WD_ON);
+```
+
+Alternatively, you can use the `AS5600::Config` struct to set all parameters in one operation:
+
+```
+AS5600::Config config;
+
+config.powerMode   = POWER_NORMAL;
+config.hysteresis  = HYST_2LSB;
+config.outputStage = ANALOG_100PERCENT;
+config.pwmFreq     = PWM_460HZ;
+config.slowFilter  = SLOW_FILTER_4x;
+config.fastFilter  = FAST_FILTER_10LSB;
+config.watchdog    = WD_OFF;
+
+sensor.setConfiguration(config);
+```
+
+This is convenient when you want to set multiple settings in one operation.  
+
+You can also get the current configuration by doing:
+
+```
+AS5600::Config current;
+sensor.getConfiguration(current);
+```
 
 ### Example Code
+An example demonstrating initialization, configuration, and angle measurement.
+
+```
+#include "pico/stdlib.h"
+#include "AS5600.h"
+
+int main() {
+    stdio_init_all();
+
+    i2c_init(i2c0, 1000000);
+    gpio_set_function(0, GPIO_FUNC_I2C);
+    gpio_set_function(1, GPIO_FUNC_I2C);
+    gpio_pull_up(0);
+    gpio_pull_up(1);
+
+    AS5600 sensor(i2c0);
+
+    sensor.setPowerMode(POWER_NORMAL);
+    sensor.setHysteresis(HYST_1LSB);
+    sensor.setFastFilter(FAST_FILTER_10LSB);
+
+    while (true) {
+        float angleDeg = sensor.readAngle<Degrees>();
+        printf("Angle: %.2f°\n", angleDeg);
+        sleep_ms(200);
+    }
+
+    return 0;
+}
+```
 
 ## Functions
 
